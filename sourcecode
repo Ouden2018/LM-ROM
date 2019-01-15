@@ -1,0 +1,185 @@
+import com.leapmotion.leap.*;
+import com.leapmotion.leap.Bone;
+
+
+Controller leap = new Controller();
+
+// Button
+int rectX1, rectY1, rectX2, rectY2;  // Position of square button
+int rectWidth, rectHeight;  // Diameter of rect
+color rect1Color, rect2Color, radioColor, baseColor;
+color overColor, pressColor;
+boolean rect1Over = false;
+boolean rect2Over = false;
+
+Radio[] buttons = new Radio[2];
+
+PrintWriter ROM;
+
+int timer = 0;
+
+int x = 130;
+int y = 220;
+
+// position of EMG graph
+int dataX = 20;
+int dataY = 120;
+int dataW = 60;
+
+
+void setup(){
+  size(800, 600, P3D);
+  colorMode(HSB, 360, 100, 100);  
+  noStroke();
+  textSize(20);
+  frameRate(10);
+  
+  // rect Colors
+  rect1Color = rect2Color = baseColor = color(220, 80, 80);
+  radioColor = color(160, 90, 70);
+  overColor = color(50, 80, 80);
+  pressColor = color(10, 95, 95);
+  
+  // rect Position and Size
+  rectX1 = width-200;
+  rectY1 = 35;
+  rectX2 = width-130;
+  rectY2 = 35;
+  rectWidth = 50;
+  rectHeight = 30;
+  
+  buttons[0] = new Radio(100, 50, 40, radioColor, color(0, 0, 90), 0, buttons);
+  buttons[1] = new Radio(165, 50, 40, radioColor, color(0, 0, 90), 1, buttons);
+  
+  
+  // save Data
+    ROM   = createWriter("date and time.csv");
+}
+
+
+void draw(){
+  background(0, 0, 0);
+  
+  // create Buttons
+  update(mouseX, mouseY);
+  
+  // Start and Stop Button
+  fill(0, 0, 90);
+  text("Start", rectX1+3, rectY1-10);
+  text("Stop", rectX2+3, rectY2-10);
+  text("Left    Right", 80, 20);
+  
+  
+  if (rect1Over) {
+    fill(overColor);
+  } else {
+    fill(rect1Color);
+  }
+  rect(rectX1, rectY1, rectWidth, rectHeight);
+  
+  if (rect2Over) {
+    fill(overColor);
+  } else {
+    fill(rect2Color);
+  }
+  rect(rectX2, rectY2, rectWidth, rectHeight);
+  
+  buttons[0].display1();
+  buttons[1].display2();
+  
+  // Timer(5sec)
+  if(rect1Color == pressColor){
+    timer++;
+    if(timer>5*10){
+      ROM.close();
+      exit();
+    }
+  }
+  
+  // direction of movements
+  pushMatrix();
+  translate(width/2, height-580);
+  fill(0, 0, 90);
+  rect(x-150, y-1, 300, 2);
+  rect(x-1, y-100, 2, 200);
+  
+  text("Radial", x-30, y-115);
+  text("Ulnar", x-25, y+120);
+  popMatrix();
+  
+  // get Hand, Finger, Bone
+  Frame frame = leap.frame();
+  HandList hands = frame.hands();
+  
+  for(int i=0; i<hands.count(); i++){
+    Hand hand = hands.get(i);
+    drawPalm(hand);
+  }
+  
+}
+
+
+// get Hand Position 
+void drawPalm(Hand hand){
+  translate(width/2 + x, height-580);
+  
+  float pitch = hand.direction().pitch();
+  float yaw = hand.direction().yaw();
+  float roll = hand.direction().roll();
+  
+  float pitchA = pitch * (180/PI);
+  float yawA = yaw * (180/PI);
+  
+  // triangle
+  fill(10, 100, 90);
+  triangle(0, y, yawA, y, 0, -pitchA+y);
+  
+  if(rect1Color == pressColor){
+    // ouput Data
+    fill(0, 0, 90);
+    ROM.println(nf(yawA,0, 1) + "\t" + nf(pitchA, 0, 1));
+  }
+  
+  fill(0, 0, 90);
+  // text
+  text("Extension/Flexion : " + nf(yawA, 0, 1) + "\n" , -200, 20);
+  text("     Radial/Ulnar     : " + nf(pitchA, 0, 1) + "\n", -200, 45);
+}
+
+// when mouse over Buttons
+void update(int x, int y) {
+  if ( overRect(rectX1, rectY1, rectWidth, rectHeight) ) {
+    rect1Over = true;
+    rect2Over = false;
+  } else if ( overRect(rectX2, rectY2, rectWidth, rectHeight) ) {
+    rect1Over = false;
+    rect2Over = true;
+  } else {
+    rect1Over = rect2Over =  false;
+  }
+}
+
+// Button pressed
+void mousePressed() {
+  if (rect1Over) {
+    rect1Color = pressColor;
+    ROM.flush();
+  }
+  if (rect2Over) {
+    ROM.close();
+    exit();
+  }
+  
+  buttons[0].press(mouseX, mouseY);
+  buttons[1].press(mouseX, mouseY);
+}
+
+// mouse Position
+boolean overRect(int x, int y, int width, int height)  {
+  if (mouseX >= x && mouseX <= x+width && 
+      mouseY >= y && mouseY <= y+height) {
+    return true;
+  } else {
+    return false;
+  }
+}
